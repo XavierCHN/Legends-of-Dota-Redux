@@ -6892,7 +6892,35 @@ function Pregame:fixSpawningIssues()
                         end
                         spawnedUnit.hasTalent = true
                     end
-                    
+
+            -- local build = self.selectedSkills[playerID]
+
+            -- if build then
+            --     local status2,err2 = pcall(function()
+            --         SkillManager:ApplyBuild(spawnedUnit, build or {})
+
+            --         buildBackups[playerID] = build
+
+            --         if self.selectedPlayerAttr[playerID] ~= nil then
+            --             local toSet = 0
+
+            --             if self.selectedPlayerAttr[playerID] == 'str' then
+            --                 toSet = 0
+            --             elseif self.selectedPlayerAttr[playerID] == 'agi' then
+            --                 toSet = 1
+            --             elseif self.selectedPlayerAttr[playerID] == 'int' then
+            --                 toSet = 2
+            --             end
+
+            --             Timers:CreateTimer(function()
+            --                 if IsValidEntity(spawnedUnit) then
+            --                     spawnedUnit:SetPrimaryAttribute(toSet)
+            --                 end
+            --             end, DoUniqueString('primaryAttrFix'), 0.1)
+            --         end
+            --     end)
+            -- end
+
                     --for i = 0, spawnedUnit:GetAbilityCount() do
                    --     if spawnedUnit:GetAbilityByIndex(i) then
                             --print("removed") 
@@ -7190,7 +7218,7 @@ ListenToGameEvent('game_rules_state_change', function(keys)
             for playerID=0,maxPlayerID-1 do
                 local hero = PlayerResource:GetSelectedHeroEntity(playerID)
 
-                if hero ~= nil and IsValidEntity(hero) then
+                if hero ~= nil and IsValidEntity(hero) and not util:isPlayerBot(playerID) then
                     -- local build = self.selectedSkills[playerID]
 
                     -- if build then
@@ -7227,7 +7255,7 @@ ListenToGameEvent('game_rules_state_change', function(keys)
                                         needSort = true
                                     end
                                 else
-                                    table.insert(skills, ability:GetName())
+                                    table.insert(skills, {abName = ability:GetName(), abLevel = ability:GetLevel()})
                                 end
                             end
                         end
@@ -7243,23 +7271,47 @@ ListenToGameEvent('game_rules_state_change', function(keys)
                             end
                         end
                         for k,v in pairs(skills) do
-                            print(v)
-                            hero:AddAbility(v)
+                            hero:AddAbility(v.abName):SetLevel(v.abLevel)
                         end
+                        -- local build = _instance.selectedSkills[playerID]
+
+                        -- if build then
+                        --     local status2,err2 = pcall(function()
+                        --         SkillManager:ApplyBuild(hero, build or {})
+
+                        --         buildBackups[playerID] = build
+
+                        --         if _instance.selectedPlayerAttr[playerID] ~= nil then
+                        --             local toSet = 0
+
+                        --             if _instance.selectedPlayerAttr[playerID] == 'str' then
+                        --                 toSet = 0
+                        --             elseif _instance.selectedPlayerAttr[playerID] == 'agi' then
+                        --                 toSet = 1
+                        --             elseif _instance.selectedPlayerAttr[playerID] == 'int' then
+                        --                 toSet = 2
+                        --             end
+
+                        --             Timers:CreateTimer(function()
+                        --                 if IsValidEntity(hero) then
+                        --                     hero:SetPrimaryAttribute(toSet)
+                        --                 end
+                        --             end, DoUniqueString('primaryAttrFix'), 0.1)
+                        --         end
+                        --     end)
+                        -- end
                         for k,v in pairs(perks) do
-                            print(v)
                             hero:AddAbility(v)
                             hero:FindAbilityByName(v):UpgradeAbility(true)
                         end
                         for k,v in pairs(talents) do
-                            print(v)
                             hero:AddAbility(v)
                         end
-                        hero:SetAbilityPoints(1)
+                        -- hero:SetAbilityPoints(1)
                     end
                 end
             end
-        end, 'fix_builds', 5)
+        end, 'fix_builds', 4)
     elseif newState == DOTA_GAMERULES_STATE_GAME_IN_PROGRESS then
         if IsDedicatedServer() then
           SU:SendPlayerBuild( buildBackups )
