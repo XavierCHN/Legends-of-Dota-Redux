@@ -6892,7 +6892,7 @@ function Pregame:fixSpawningIssues()
                         end
                         spawnedUnit.hasTalent = true
                     end
-
+                    
                     --for i = 0, spawnedUnit:GetAbilityCount() do
                    --     if spawnedUnit:GetAbilityByIndex(i) then
                             --print("removed") 
@@ -7184,7 +7184,83 @@ local _instance = Pregame()
 
 ListenToGameEvent('game_rules_state_change', function(keys)
     local newState = GameRules:State_Get()
-    if newState == DOTA_GAMERULES_STATE_GAME_IN_PROGRESS then
+    if newState == DOTA_GAMERULES_STATE_PRE_GAME then
+        Timers:CreateTimer(function()
+            local maxPlayerID = 24
+            for playerID=0,maxPlayerID-1 do
+                local hero = PlayerResource:GetSelectedHeroEntity(playerID)
+
+                if hero ~= nil and IsValidEntity(hero) then
+                    -- local build = self.selectedSkills[playerID]
+
+                    -- if build then
+                    -- end
+
+                    local talents = {}
+                    local skills = {}
+                    local perks = {}
+
+                    local foundTalent = false
+                    local foundSkill = false
+                    local foundPerk = false
+
+                    local needSort = false
+
+                    for i = 0, hero:GetAbilityCount() do
+                        if hero:GetAbilityByIndex(i) then
+                            local ability = hero:GetAbilityByIndex(i)
+                            if ability then
+                                if string.match(ability:GetName(), "_perk") then
+                                    foundPerk = true
+
+                                    table.insert(perks, ability:GetName())
+
+                                    if not foundSkill then
+                                        needSort = true
+                                    end
+                                elseif string.match(ability:GetName(), "special_bonus_") then
+                                    foundTalent = true
+
+                                    table.insert(talents, ability:GetName())
+
+                                    if not foundSkill then
+                                        needSort = true
+                                    end
+                                else
+                                    table.insert(skills, ability:GetName())
+                                end
+                            end
+                        end
+                    end
+
+                    if needSort then
+                        for i = 0, 23 do
+                            if hero:GetAbilityByIndex(i) then
+                                local ability = hero:GetAbilityByIndex(i)
+                                if ability then
+                                    hero:RemoveAbility(ability:GetName())
+                                end
+                            end
+                        end
+                        for k,v in pairs(skills) do
+                            print(v)
+                            hero:AddAbility(v)
+                        end
+                        for k,v in pairs(perks) do
+                            print(v)
+                            hero:AddAbility(v)
+                            hero:FindAbilityByName(v):UpgradeAbility(true)
+                        end
+                        for k,v in pairs(talents) do
+                            print(v)
+                            hero:AddAbility(v)
+                        end
+                        hero:SetAbilityPoints(1)
+                    end
+                end
+            end
+        end, 'fix_builds', 5)
+    elseif newState == DOTA_GAMERULES_STATE_GAME_IN_PROGRESS then
         if IsDedicatedServer() then
           SU:SendPlayerBuild( buildBackups )
         end
