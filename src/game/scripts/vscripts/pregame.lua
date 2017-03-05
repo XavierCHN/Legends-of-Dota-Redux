@@ -69,6 +69,7 @@ function Pregame:init()
     self.selectedPlayerAttr = {}
     self.selectedSkills = {}
     self.selectedRandomBuilds = {}
+    self.ignoreSpawn = {}
 
     -- Mirror draft stuff
     self.useDraftArrays = false
@@ -1010,9 +1011,6 @@ function Pregame:onThink()
         local this = self
 
         Timers:CreateTimer(function()
-            -- Fix builds
-            this:applyBuilds()
-
             -- Move to ingame
             this:setPhase(constants.PHASE_INGAME)
 
@@ -6633,12 +6631,13 @@ function Pregame:fixSpawningIssues()
         -- Grab the unit that spawned
         local spawnedUnit = EntIndexToHScript(keys.entindex)
 
-        if GameRules:State_Get() < DOTA_GAMERULES_STATE_STRATEGY_TIME then
-            return false
-        end
-
         -- Ensure it's a valid unit
         if IsValidEntity(spawnedUnit) then
+            if string.match(spawnedUnit:GetUnitName(), "npc_dota_hero_") and not self.ignoreSpawn[spawnedUnit:GetPlayerOwnerID()] then
+                self.ignoreSpawn[spawnedUnit:GetPlayerOwnerID()] = true
+                return false
+            end
+
             -- Spellfix: Give Eyes in the Forest a notification for nearby enemies.
             if spawnedUnit:GetName() == "npc_dota_treant_eyes" then
                 Timers:CreateTimer(function()
@@ -6849,6 +6848,34 @@ function Pregame:fixSpawningIssues()
                     --print(self.perksDisabled)
                     if spawnedUnit:IsNull() then
                         return
+                    end
+
+                    local build = self.selectedSkills[playerID]
+
+                    if build then
+                        local status2,err2 = pcall(function()
+                            SkillManager:ApplyBuild(spawnedUnit, build or {})
+
+                            buildBackups[playerID] = build
+
+                            if self.selectedPlayerAttr[playerID] ~= nil then
+                                local toSet = 0
+
+                                if self.selectedPlayerAttr[playerID] == 'str' then
+                                    toSet = 0
+                                elseif self.selectedPlayerAttr[playerID] == 'agi' then
+                                    toSet = 1
+                                elseif self.selectedPlayerAttr[playerID] == 'int' then
+                                    toSet = 2
+                                end
+
+                                Timers:CreateTimer(function()
+                                    if IsValidEntity(spawnedUnit) then
+                                        spawnedUnit:SetPrimaryAttribute(toSet)
+                                    end
+                                end, DoUniqueString('primaryAttrFix'), 0.1)
+                            end
+                        end)
                     end
                     
                     local nameTest = spawnedUnit:GetName()
@@ -7184,7 +7211,12 @@ local _instance = Pregame()
 
 ListenToGameEvent('game_rules_state_change', function(keys)
     local newState = GameRules:State_Get()
-    if newState == DOTA_GAMERULES_STATE_GAME_IN_PROGRESS then
+    if newState == DOTA_GAMERULES_STATE_PRE_GAME then
+        -- Timers:CreateTimer(function()
+        --     -- Fix builds
+        --     _instance:applyBuilds()
+        -- end, 'fix_builds', 5)
+    elseif newState == DOTA_GAMERULES_STATE_GAME_IN_PROGRESS then
         if IsDedicatedServer() then
           SU:SendPlayerBuild( buildBackups )
         end
